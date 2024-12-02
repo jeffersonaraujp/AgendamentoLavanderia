@@ -1,0 +1,622 @@
+<html><head><base href="." />
+
+<title>Sistema de Agendamento de Lavanderia</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+.fade-exit {
+  opacity: 1;
+}
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}
+</style>
+
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// Componente principal
+function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = useState(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : [
+      { username: 'adm', password: 'admparasempre', isAdmin: true }
+    ];
+  });
+  
+  const [schedules, setSchedules] = useState(() => {
+    const savedSchedules = localStorage.getItem('schedules');
+    return savedSchedules ? JSON.parse(savedSchedules) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('users', JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem('schedules', JSON.stringify(schedules));
+  }, [schedules]);
+
+  // Login handler
+  const handleLogin = (username, password) => {
+    const user = users.find(u => u.username === username && u.password === password);
+    if (user) {
+      setIsLoggedIn(true);
+      setIsAdmin(user.isAdmin);
+      setCurrentUser(user);
+    } else {
+      alert('Credenciais inválidas!');
+    }
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    setCurrentUser(null);
+  };
+
+  // Adicionar novo usuário (morador)
+  const handleAddUser = (newUser) => {
+    setUsers([...users, { ...newUser, isAdmin: false }]);
+  };
+
+  // Adicionar agendamento
+  const handleAddSchedule = (schedule) => {
+    setSchedules([...schedules, schedule]);
+  };
+
+  // Cancelar agendamento
+  const handleCancelSchedule = (scheduleId) => {
+    setSchedules(schedules.filter(s => s.id !== scheduleId));
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {!isLoggedIn ? (
+        <LoginPage onLogin={handleLogin} />
+      ) : isAdmin ? (
+        <AdminPage 
+          users={users} 
+          onAddUser={handleAddUser}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <UserPage 
+          currentUser={currentUser}
+          schedules={schedules}
+          onAddSchedule={handleAddSchedule}
+          onCancelSchedule={handleCancelSchedule}
+          onLogout={handleLogout}
+        />
+      )}
+    </div>
+  );
+}
+
+// Página de Login
+function LoginPage({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showWarning, setShowWarning] = useState(false);
+  const [pendingLogin, setPendingLogin] = useState(null);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setShowWarning(true);
+    setPendingLogin({username, password});
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      {showWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md">
+            <h3 className="text-lg font-bold mb-4">Atenção!</h3>
+            <p className="mb-4">
+              CASO NÃO DESOCUPE A MÁQUINA E O VARAL no final do seu horário agendado, 
+              o próximo morador PODERÁ RETIRAR AS ROUPAS DA MÁQUINA OU DO VARAL
+            </p>
+            <div className="flex justify-end gap-4">
+              <button 
+                onClick={() => {
+                  setShowWarning(false);
+                  if (pendingLogin) {
+                    onLogin(pendingLogin.username, pendingLogin.password);
+                  }
+                }}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Entendi
+              </button>
+              <button 
+                onClick={() => setShowWarning(false)}
+                className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="bg-white p-8 rounded-lg shadow-md w-96">
+        <img 
+          src="https://images.unsplash.com/photo-1545173168-9f1947eebb7f?auto=format&fit=crop&q=80&w=2942&ixlib=rb-4.0.3"
+          alt="Lavanderia Profissional"
+          className="w-full h-48 object-cover rounded-lg mb-6"
+        />
+        <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Apartamento/Admin
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              required
+            />
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Senha
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
+          >
+            Entrar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Página do Administrador
+function AdminPage({ users, onAddUser, onLogout }) {
+  const [name, setName] = useState('');
+  const [apartment, setApartment] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [editingUser, setEditingUser] = useState(null);
+  
+  const handleDeleteUser = (username) => {
+    if (window.confirm(`Tem certeza que deseja deletar o usuário ${username}?`)) {
+      setUsers(users.filter(u => u.username !== username));
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setName(user.name);
+    setApartment(user.apartment);
+    setPhone(user.phone);
+    setPassword(user.password);
+  };
+
+  const handleUpdateUser = (e) => {
+    e.preventDefault();
+    setUsers(users.map(u => 
+      u.username === editingUser.username 
+        ? { ...u, name, apartment, phone, password }
+        : u
+    ));
+    setEditingUser(null);
+    setName('');
+    setApartment('');
+    setPhone('');
+    setPassword('');
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onAddUser({
+      username: apartment,
+      name,
+      apartment,
+      phone,
+      password
+    });
+    setName('');
+    setApartment('');
+    setPhone('');
+    setPassword('');
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-2xl font-bold">Painel do Administrador</h2>
+        <button
+          onClick={onLogout}
+          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Sair
+        </button>
+      </div>
+      
+      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h3 className="text-xl font-bold mb-4">
+          {editingUser ? 'Editar Morador' : 'Cadastrar Novo Morador'}
+        </h3>
+        <form onSubmit={editingUser ? handleUpdateUser : handleSubmit}>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Nome
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Apartamento
+              </label>
+              <input
+                type="text"
+                value={apartment}
+                onChange={(e) => setApartment(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Celular
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Senha
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            >
+              {editingUser ? 'Atualizar' : 'Cadastrar'}
+            </button>
+            {editingUser && (
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                className="mt-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-xl font-bold mb-4">Moradores Cadastrados</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-auto">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="px-4 py-2">Nome</th>
+                <th className="px-4 py-2">Apartamento</th>
+                <th className="px-4 py-2">Celular</th>
+                <th className="px-4 py-2">Senha</th>
+                <th className="px-4 py-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.filter(user => !user.isAdmin).map((user, index) => (
+                <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                  <td className="border px-4 py-2">{user.name}</td>
+                  <td className="border px-4 py-2">{user.apartment}</td>
+                  <td className="border px-4 py-2">{user.phone}</td>
+                  <td className="border px-4 py-2">{user.password}</td>
+                  <td className="border px-4 py-2">
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      className="bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-1 px-2 rounded text-sm mr-2"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user.username)}
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
+                    >
+                      Deletar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Página do Usuário
+function UserPage({ currentUser, schedules, onAddSchedule, onCancelSchedule, onLogout }) {
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedMachine, setSelectedMachine] = useState('');
+
+  const timeSlots = ['00:00', '08:00', '16:00'];
+
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  };
+
+  const getMaxDateTime = () => {
+    const now = new Date();
+    const weekEnd = new Date(now.setDate(now.getDate() + (6 - now.getDay())));
+    return weekEnd.toISOString().split('T')[0];
+  };
+
+  const getUserSchedulesCount = () => {
+    const now = new Date();
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+    const weekEnd = new Date(now.setDate(now.getDate() + 6));
+    
+    return schedules.filter(s => 
+      s.apartment === currentUser.apartment &&
+      new Date(s.date) >= weekStart &&
+      new Date(s.date) <= weekEnd
+    ).length;
+  };
+
+  const isTimeSlotAvailable = (date, time, machine) => {
+    return !schedules.some(s => 
+      s.date === date && 
+      s.time === time && 
+      s.machine === machine
+    );
+  };
+
+  const handleScheduleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (getUserSchedulesCount() >= 2) {
+      alert('Você já atingiu o limite de 2 agendamentos por semana.');
+      return;
+    }
+
+    const scheduleDateTime = new Date(`${selectedDate}T${selectedTime}`);
+    if (scheduleDateTime < new Date()) {
+      alert('Não é possível agendar horários no passado.');
+      return;
+    }
+
+    if (!isTimeSlotAvailable(selectedDate, selectedTime, selectedMachine)) {
+      alert('Este horário já está ocupado.');
+      return;
+    }
+
+    onAddSchedule({
+      id: Date.now().toString(),
+      apartment: currentUser.apartment,
+      date: selectedDate,
+      time: selectedTime,
+      machine: selectedMachine
+    });
+
+    setSelectedDate('');
+    setSelectedTime('');
+    setSelectedMachine('');
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-2xl font-bold">Agendamento de Lavanderia - Apto {currentUser.apartment}</h2>
+        <button
+          onClick={onLogout}
+          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Sair
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-bold mb-4">Novo Agendamento</h3>
+          <form onSubmit={handleScheduleSubmit}>
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Data
+              </label>
+              <input
+                type="date"
+                min={getCurrentDateTime()}
+                max={getMaxDateTime()}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Horário
+              </label>
+              <select
+                value={selectedTime}
+                onChange={(e) => setSelectedTime(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              >
+                <option value="">Selecione um horário</option>
+                {timeSlots.map(time => (
+                  <option key={time} value={time}>{time}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Máquina
+              </label>
+              <select
+                value={selectedMachine}
+                onChange={(e) => setSelectedMachine(e.target.value)}
+                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                required
+              >
+                <option value="">Selecione uma máquina</option>
+                <option value="1">Máquina 1</option>
+                <option value="2">Máquina 2</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+            >
+              Agendar
+            </button>
+          </form>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-bold mb-4">Meus Agendamentos</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="px-4 py-2">Data</th>
+                  <th className="px-4 py-2">Horário</th>
+                  <th className="px-4 py-2">Máquina</th>
+                  <th className="px-4 py-2">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {schedules
+                  .filter(s => s.apartment === currentUser.apartment)
+                  .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
+                  .map(schedule => (
+                    <tr key={schedule.id}>
+                      <td className="border px-4 py-2">{schedule.date}</td>
+                      <td className="border px-4 py-2">{schedule.time}</td>
+                      <td className="border px-4 py-2">{schedule.machine}</td>
+                      <td className="border px-4 py-2">
+                        <button
+                          onClick={() => onCancelSchedule(schedule.id)}
+                          className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-sm"
+                        >
+                          Cancelar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-xl font-bold mb-4">Horários Disponíveis</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full table-auto">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="px-4 py-2">Data</th>
+                <th className="px-4 py-2">Horário</th>
+                <th className="px-4 py-2">Máquina 1</th>
+                <th className="px-4 py-2">Máquina 2</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...Array(7)].map((_, dayIndex) => {
+                const date = new Date();
+                date.setDate(date.getDate() + dayIndex);
+                const dateStr = date.toISOString().split('T')[0];
+
+                return timeSlots.map(time => (
+                  <tr key={`${dateStr}-${time}`}>
+                    <td className="border px-4 py-2">{dateStr}</td>
+                    <td className="border px-4 py-2">{time}</td>
+                    <td className="border px-4 py-2">
+                      {isTimeSlotAvailable(dateStr, time, '1') ? 
+                        'Disponível' : 
+                        `Ocupado (Apto ${schedules.find(s => 
+                          s.date === dateStr && 
+                          s.time === time && 
+                          s.machine === '1'
+                        )?.apartment})`
+                      }
+                    </td>
+                    <td className="border px-4 py-2">
+                      {isTimeSlotAvailable(dateStr, time, '2') ? 
+                        'Disponível' : 
+                        `Ocupado (Apto ${schedules.find(s => 
+                          s.date === dateStr && 
+                          s.time === time && 
+                          s.machine === '2'
+                        )?.apartment})`
+                      }
+                    </td>
+                  </tr>
+                ));
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Renderizar o aplicativo
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+
+</body></html>
